@@ -1,0 +1,16 @@
+[
+    {
+        "decoder":"LQT5979",
+        "FirsImage":"path",
+        "trafic":[
+            {
+                "dateTime":"",
+                "orientation":"IN"
+            },
+            {
+                "dateTime":"",
+                "orientation":"OUT"
+            }
+        ]
+    }
+]

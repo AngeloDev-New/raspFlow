@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Visualização de Câmeras</title>
+<style>
+* {
+margin: 0;
+padding: 0;
+box-sizing: border-box;
+}
+body {
+background-color: black;
+overflow: hidden;
+font-family: Arial, sans-serif;
+}
+
+/* Menu de seleção */
+#menuDispositivos {
+position: fixed;
+top: 50%;
+left: 50%;
+transform: translate(-50%, -50%);
+background: rgba(30, 30, 30, 0.95);
+padding: 30px;
+border-radius: 15px;
+z-index: 1000;
+min-width: 400px;
+border: 2px solid #fff;
+}
+#menuDispositivos.hidden {
+display: none;
+}
+#menuDispositivos h2 {
+color: white;
+margin-bottom: 20px;
+text-align: center;
+}
+.dispositivo-grupo {
+margin-bottom: 20px;
+}
+.dispositivo-grupo label {
+color: white;
+display: block;
+margin-bottom: 8px;
+font-weight: bold;
+}
+.dispositivo-grupo select {
+width: 100%;
+padding: 10px;
+border-radius: 5px;
+border: 1px solid #555;
+background: #1a1a1a;
+color: white;
+font-size: 14px;
+}
+#btnIniciar {
+width: 100%;
+padding: 15px;
+background: #4CAF50;
+color: white;
+border: none;
+border-radius: 8px;
+font-size: 16px;
+font-weight: bold;
+cursor: pointer;
+margin-top: 10px;
+}
+#btnIniciar:hover {
+background: #45a049;
+}
+
+/* Câmeras */
+.frontal {
+position: fixed;
+right: 10px;
+top: 10px;
+width: 300px;
+border: 2px solid #fff;
+border-radius: 10px;
+z-index: 2;
+display: none;
+}
+.outra {
+position: absolute;
+left: 0;
+top: 0;
+width: 100%;
+height: 100%;
+object-fit: cover;
+z-index: 1;
+display: none;
+}
+
+/* Canvas oculto para captura */
+#canvasCaptura {
+display: none;
+}
+
+/* Controles de gravação */
+#controles {
+position: fixed;
+bottom: 20px;
+left: 50%;
+transform: translateX(-50%);
+z-index: 3;
+display: none;
+gap: 10px;
+}
+.btn-controle {
+padding: 15px 30px;
+font-size: 16px;
+border: none;
+border-radius: 8px;
+cursor: pointer;
+font-weight: bold;
+transition: all 0.3s;
+}
+#btnGravar {
+background: #f44336;
+color: white;
+}
+#btnGravar:hover {
+background: #da190b;
+}
+#btnGravar.gravando {
+background: #ff9800;
+animation: pulse 1.5s infinite;
+}
+@keyframes pulse {
+0%, 100% { opacity: 1; }
+50% { opacity: 0.6; }
+}
+#btnParar {
+background: #555;
+color: white;
+display: none;
+}
+#btnParar:hover {
+background: #333;
+}
+
+/* Status */
+#status {
+position: fixed;
+top: 20px;
+left: 50%;
+transform: translateX(-50%);
+background: rgba(0, 0, 0, 0.8);
+color: white;
+padding: 10px 20px;
+border-radius: 20px;
+z-index: 4;
+display: none;
+}
+</style>
+</head>
+<body>
+<!-- Menu de seleção de dispositivos -->
+<div id="menuDispositivos">
+<h2>🎥 Configurar Dispositivos</h2>
+<div class="dispositivo-grupo">
+<label for="selectCamera1">Câmera Principal:</label>
+<select id="selectCamera1">
+<option value="0">Câmera 0</option>
+<option value="1">Câmera 1</option>
+<option value="2">Câmera 2</option>
+<option value="3">Câmera 3</option>
+</select>
+</div>
+<div class="dispositivo-grupo">
+<label for="selectCamera2">Câmera Secundária:</label>
+<select id="selectCamera2">
+<option value="0">Câmera 0</option>
+<option value="1" selected>Câmera 1</option>
+<option value="2">Câmera 2</option>
+<option value="3">Câmera 3</option>
+</select>
+</div>
+<div class="dispositivo-grupo">
+<label for="selectMicrofone">Microfone:</label>
+<select id="selectMicrofone">
+<option value="">Carregando...</option>
+</select>
+</div>
+<button id="btnIniciar">Iniciar Visualização</button>
+</div>
+
+<!-- Câmeras -->
+<img id="cameraPrincipal" class="outra" alt="Câmera principal">
+<img id="cameraFrontal" class="frontal" alt="Câmera secundária">
+
+<!-- Canvas oculto para captura -->
+<canvas id="canvasCaptura"></canvas>
+
+<!-- Controles -->
+<div id="controles">
+<button id="btnGravar" class="btn-controle">● Gravar</button>
+<button id="btnParar" class="btn-controle">■ Parar</button>
+</div>
+
+<!-- Status -->
+<div id="status">Pressione ESPAÇO para trocar câmeras</div>
+
+<script>
+let audioDevices = [];
+let audioStream = null; // Para armazenar o stream de áudio
+let mediaRecorder = null;
+let recordedChunks = [];
+let trocado = false;
+let gravando = false;
+let camera1Index = 0;
+let camera2Index = 1;
+let audioSourceNode = null;
+
+const imgPrincipal = document.getElementById("cameraPrincipal");
+const imgFrontal = document.getElementById("cameraFrontal");
+const canvas = document.getElementById("canvasCaptura");
+const ctx = canvas.getContext('2d');
+const menu = document.getElementById("menuDispositivos");
+const controles = document.getElementById("controles");
+const status = document.getElementById("status");
+const btnIniciar = document.getElementById("btnIniciar");
+const btnGravar = document.getElementById("btnGravar");
+const btnParar = document.getElementById("btnParar");
+
+// Carregar dispositivos de áudio do navegador
+async function carregarAudioDevices() {
+try {
+// Solicitar permissão primeiro
+await navigator.mediaDevices.getUserMedia({ audio: true });
+
+const devices = await navigator.mediaDevices.enumerateDevices();
+audioDevices = devices.filter(d => d.kind === 'audioinput');
+
+const selectMic = document.getElementById("selectMicrofone");
+selectMic.innerHTML = '';
+
+if (audioDevices.length === 0) {
+selectMic.innerHTML = '<option>Nenhum microfone encontrado</option>';
+return;
+}
+
+audioDevices.forEach((dev, i) => {
+const option = document.createElement("option");
+option.value = dev.deviceId;
+option.textContent = dev.label || `Microfone ${i + 1}`;
+selectMic.appendChild(option);
+});
+} catch (err) {
+console.error("Erro ao carregar microfones:", err);
+document.getElementById("selectMicrofone").innerHTML = '<option>Erro: Permissão negada</option>';
+}
+}
+
+// Iniciar visualização
+btnIniciar.addEventListener("click", async () => {
+camera1Index = document.getElementById("selectCamera1").value;
+camera2Index = document.getElementById("selectCamera2").value;
+
+try {
+// Configurar streams MJPEG
+imgPrincipal.src = `/frame/${camera1Index}?t=${Date.now()}`;
+imgFrontal.src = `/frame/${camera2Index}?t=${Date.now()}`;
+imgPrincipal.style.display = "block";
+imgFrontal.style.display = "block";
+
+// Configurar canvas com dimensões da imagem
+imgPrincipal.onload = function() {
+canvas.width = imgPrincipal.naturalWidth || 1280;
+canvas.height = imgPrincipal.naturalHeight || 720;
+};
+
+// Esconder menu, mostrar controles
+menu.classList.add("hidden");
+controles.style.display = "flex";
+status.style.display = "block";
+
+} catch (err) {
+alert("Erro ao iniciar: " + err.message);
+}
+});
+
+// Trocar câmeras com espaço
+document.addEventListener("keydown", (e) => {
+if (e.code === "Space" && menu.classList.contains("hidden")) {
+e.preventDefault();
+trocado = !trocado;
+if (trocado) {
+imgPrincipal.src = `/frame/${camera2Index}?t=${Date.now()}`;
+imgFrontal.src = `/frame/${camera1Index}?t=${Date.now()}`;
+} else {
+imgPrincipal.src = `/frame/${camera1Index}?t=${Date.now()}`;
+imgFrontal.src = `/frame/${camera2Index}?t=${Date.now()}`;
+}
+}
+});
+
+// Gravação
+btnGravar.addEventListener("click", () => {
+if (!mediaRecorder || mediaRecorder.state === "inactive") {
+iniciarGravacao();
+}
+});
+
+btnParar.addEventListener("click", () => {
+pararGravacao();
+});
+
+async function iniciarGravacao() {
+recordedChunks = [];
+gravando = true;
+
+try {
+// Pegar microfone selecionado
+const micId = document.getElementById("selectMicrofone").value;
+console.log("Inicializando microfone:", micId);
+
+// Capturar áudio do microfone selecionado
+audioStream = await navigator.mediaDevices.getUserMedia({ 
+audio: { deviceId: micId ? { exact: micId } : undefined }
+});
+console.log("Áudio capturado com sucesso");
+
+// Criar stream do canvas capturando AMBAS as câmeras
+const canvasStream = canvas.captureStream(30); // 30 FPS
+const videoTrack = canvasStream.getVideoTracks()[0];
+const audioTrack = audioStream.getAudioTracks()[0];
+
+const combinedStream = new MediaStream([videoTrack, audioTrack]);
+console.log("Stream combinado criado:", combinedStream.getTracks());
+
+// Capturar frames continuamente com AMBAS as câmeras
+function captureFrame() {
+if (gravando) {
+try {
+// Desenhar câmera principal (fundo)
+ctx.drawImage(imgPrincipal, 0, 0, canvas.width, canvas.height);
+
+// Desenhar câmera secundária (PiP no canto superior direito)
+const pipWidth = canvas.width * 0.25; // 25% da largura
+const pipHeight = pipWidth * (imgFrontal.naturalHeight / imgFrontal.naturalWidth) || pipWidth * 0.75;
+const pipX = canvas.width - pipWidth - 20; // 20px de margem
+const pipY = 20; // 20px do topo
+
+// Borda branca ao redor do PiP
+ctx.strokeStyle = 'white';
+ctx.lineWidth = 4;
+ctx.strokeRect(pipX - 2, pipY - 2, pipWidth + 4, pipHeight + 4);
+
+// Desenhar PiP
+ctx.drawImage(imgFrontal, pipX, pipY, pipWidth, pipHeight);
+} catch(e) {
+console.error("Erro ao capturar frame:", e);
+}
+
+requestAnimationFrame(captureFrame);
+}
+}
+captureFrame();
+
+// Configurar MediaRecorder
+try {
+mediaRecorder = new MediaRecorder(combinedStream, {
+mimeType: 'video/webm;codecs=vp9,opus',
+videoBitsPerSecond: 2500000
+});
+console.log("MediaRecorder criado com sucesso");
+} catch(e) {
+console.log("Tentando codec padrão");
+try {
+mediaRecorder = new MediaRecorder(combinedStream, {
+mimeType: 'video/webm'
+});
+} catch(e2) {
+mediaRecorder = new MediaRecorder(combinedStream);
+}
+}
+
+mediaRecorder.ondataavailable = (e) => {
+if (e.data.size > 0) {
+recordedChunks.push(e.data);
+console.log("Chunk gravado:", e.data.size, "bytes");
+}
+};
+
+mediaRecorder.onstop = () => {
+console.log("Gravação parada. Total de chunks:", recordedChunks.length);
+const blob = new Blob(recordedChunks, { type: 'video/webm' });
+console.log("Blob criado:", blob.size, "bytes");
+const url = URL.createObjectURL(blob);
+const a = document.createElement('a');
+a.href = url;
+const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+a.download = `gravacao_${timestamp}.webm`;
+document.body.appendChild(a);
+a.click();
+document.body.removeChild(a);
+URL.revokeObjectURL(url);
+
+// Parar áudio
+audioStream.getTracks().forEach(track => track.stop());
+};
+
+mediaRecorder.onerror = (e) => {
+console.error("Erro no MediaRecorder:", e);
+status.textContent = "❌ Erro na gravação";
+};
+
+mediaRecorder.start(100);
+console.log("Gravação iniciada");
+btnGravar.classList.add("gravando");
+btnGravar.textContent = "⏺ Gravando...";
+btnParar.style.display = "block";
+status.textContent = "🔴 GRAVANDO (ambas câmeras)";
+
+} catch(err) {
+console.error("Erro ao iniciar gravação:", err);
+alert("Erro ao iniciar gravação: " + err.message);
+gravando = false;
+}
+}
+
+function pararGravacao() {
+if (mediaRecorder && mediaRecorder.state === "recording") {
+gravando = false;
+mediaRecorder.stop();
+btnGravar.classList.remove("gravando");
+btnGravar.textContent = "● Gravar";
+btnParar.style.display = "none";
+status.textContent = "Pressione ESPAÇO para trocar câmeras";
+}
+}
+
+// Inicializar
+carregarAudioDevices();
+</script>
+</body>
+</html>
