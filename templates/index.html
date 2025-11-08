@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pipeline Imagens</title>
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#000000">
+    <link rel="shortcut icon" href="{{url_for('static',filename='icons/favicon.ico')}}" type="image/x-icon">
+    <link rel="stylesheet" href="{{ url_for('static', filename='styles/style.css') }}">
+</head>
+<body>
+    <div>
+        <div>
+            
+            <div id="overview">
+                <img>
+            </div>
+            
+            <h1 id="segmentacao">Global Configs</h1>
+        </div>
+
+        <div id="fase">
+            <h1>Aquisiçao das Imagens:</h1>
+        </div>
+
+        <div class="dir" upimages>
+            <p>Carregar as Imagens</p>
+            <input type="file" id="fileInput" style="display:none" accept="image/*" multiple>
+        </div>
+    </div>
+    <script>
+        const plusImgUrl = "{{ url_for('static', filename='assets/plus.png') }}";
+    </script>
+    <script src="{{ url_for('static', filename='scripts/galery.js') }}"></script>
+    <script src="{{ url_for('static', filename='scripts/training.js') }}"></script>
+</body>
+</html>

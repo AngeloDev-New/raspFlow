@@ -1,0 +1,65 @@
+body{
+    /* display: flex; */
+    background-color: rgb(88, 85, 85);
+    
+}
+.dir{
+    height: 50px;
+    width: 100px;
+    background-color: rgb(43, 39, 39);
+    border-radius: 10%;
+    color : aliceblue;
+    justify-content: center;
+    padding: 10px 20px 25px 20px;
+    
+    margin: auto;
+}
+.dir>p,#fase>h1{
+    text-align: center;
+
+}
+#segmentacao{
+    position:fixed;
+    top: 30px;
+    right: 30px;
+    padding: 10px;
+    background-color: black;
+    color: aliceblue;
+    border-radius: 10%;
+    display: none;
+
+}
+#overview{
+    position: fixed;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    display: none;
+}
+.dir:hover{
+    height: 50px;
+    width: 100px;
+    background-color: black;
+}
+#fase{
+    margin: auto;
+    padding: 20px;
+    /* display: block; */
+    color: aliceblue;
+}
+.galery{
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    width: 1200px;
+    height: auto;
+    margin: auto;
+
+
+
+}
+.itengalery{
+    width: 300px;
+    height: 250px;
+
+}
+

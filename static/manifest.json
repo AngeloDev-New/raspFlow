@@ -1,0 +1,12 @@
+{
+        "name": "Classificador de Soja",
+        "short_name": "SojaApp",
+        "start_url": "/",
+        "display": "standalone",
+        "background_color": "#ffffff",
+        "theme_color": "#000000",
+        "icons": [
+            "static/icons/icon-192.png",
+            "static/icons/icon-512.png"
+        ]
+    }
